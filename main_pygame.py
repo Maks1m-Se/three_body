@@ -13,6 +13,7 @@ SCALE = 100  # Scaling factor to visualize position values in pixels
 
 # UI Controls
 paused = False
+display_info = False
 speed_multiplier = 1.0  # Speed control factor
 button_font = None
 
@@ -29,7 +30,7 @@ max_body_speed = 8
 pygame.mixer.init()
 pygame.mixer.music.load("assets/sounds/epiano.mp3")
 pygame.mixer.music.play(-1)  # Loop music indefinitely
-pygame.mixer.music.set_volume(.7)
+pygame.mixer.music.set_volume(.5)
 
 # Default Initial Conditions - Slightly Unstable System
 def default_bodies():
@@ -90,6 +91,11 @@ def toggle_pause():
     global paused
     paused = not paused
 
+def toggle_display_info():
+    """Display infos of the bodies"""
+    global display_info
+    display_info = not display_info
+
 def adjust_speed(factor):
     """Adjusts the simulation speed multiplier."""
     global speed_multiplier
@@ -112,10 +118,11 @@ def get_center_of_mass():
 
 def run_simulation():
     """Runs the simulation loop using Pygame to visualize motion and add UI controls."""
-    global button_font, background_x, background_y
+    global button_font, background_x, background_y, elapsed_time
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
-    button_font = pygame.font.Font(None, 25) 
+    button_font = pygame.font.Font(None, 25)
+    elapsed_time = 0  # Initialize simulation time in days
     running = True
     
     while running:
@@ -130,59 +137,63 @@ def run_simulation():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False  # Allow the user to close the window
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mx, my = pygame.mouse.get_pos()
-                if 10 <= mx <= 110 and 700 <= my <= 730:  # Fix button click areas
-                    toggle_pause()
-                elif 130 <= mx <= 180 and 700 <= my <= 730:
-                    adjust_speed(1.1)
-                elif 190 <= mx <= 240 and 700 <= my <= 730:
-                    adjust_speed(0.9)
-                elif 260 <= mx <= 360 and 700 <= my <= 730:
-                    reset_simulation()
+            # elif event.type == pygame.MOUSEBUTTONDOWN:
+            #     mx, my = pygame.mouse.get_pos()
+            #     if 10 <= mx <= 110 and 700 <= my <= 730:  
+            #         toggle_pause()
+            #     elif 130 <= mx <= 180 and 700 <= my <= 730:
+            #         adjust_speed(0.1)
+            #     elif 190 <= mx <= 240 and 700 <= my <= 730:
+            #         adjust_speed(-0.1)
+            #     elif 260 <= mx <= 360 and 700 <= my <= 730:
+            #         reset_simulation()
 
-        
         if not paused:
-            update_positions(bodies, dt)  # Update the positions of the bodies
+            update_positions(bodies, dt)  
+            elapsed_time += dt *100 * speed_multiplier  # Update simulation time in days 
         
         center_of_mass = get_center_of_mass()
         
         for i, body in enumerate(bodies):
             pos_adjusted = (body['pos'] - center_of_mass) * SCALE + np.array([WIDTH / 2, HEIGHT / 2])
             x, y = int(pos_adjusted[0]), int(pos_adjusted[1])
-            radius = int(body['mass'] * 5)  # Scale the size of the body based on its mass
+            radius = int(body['mass'] * 5)  
             
-            
-            #draw trails
+            # Draw trails
             trails[i].append((x, y))
             if len(trails[i]) > max_trail_length:
                 trails[i].pop(0)
             for j, trail_pos in enumerate(trails[i]):
                 fade_factor = j / len(trails[i])
-                trail_color = tuple(int(c * fade_factor)*0.3 for c in body['color'])
+                trail_color = tuple(int(c * fade_factor) * 0.3 for c in body['color'])
                 pygame.gfxdraw.filled_circle(screen, trail_pos[0], trail_pos[1], 1, trail_color)
 
-            #draw bodies
+            # Draw bodies
             pygame.gfxdraw.filled_circle(screen, x, y, radius, body['color'])
             pygame.gfxdraw.aacircle(screen, x, y, radius, body['color'])
 
+            # Calculate speed in km/s
+            speed_km_s = np.linalg.norm(body['vel']) * 30  # Assuming 1 velocity unit = 30 km/s (earth speed)
 
+            # Display mass, size, and speed
+            info_text = f"Mass: {body['mass']:.1f}x Sun | Radius: {radius * 700}k km | Vel: {speed_km_s:.1f} km/s"
+            info_surface = button_font.render(info_text, True, (255, 255, 255))
+            if display_info:
+                screen.blit(info_surface, (x + 10, y - 10))  # Position text near body
 
         # UI Buttons
-        button_color = (50, 50, 150)  # Dark blue
-        hover_color = (70, 70, 200)  # Brighter blue on hover
-        text_color = (255, 255, 255)  # White text
+        button_color = (50, 50, 150)  
+        hover_color = (70, 70, 200)  
+        text_color = (255, 255, 255)  
 
-        # Button positions
         buttons = [
-            {"rect": pygame.Rect(10, HEIGHT-50, 70, 30), "label": "Pause", "action": toggle_pause},
-            {"rect": pygame.Rect(100, HEIGHT-50, 70, 30), "label": "Reset", "action": reset_simulation},
-            {"rect": pygame.Rect(200, HEIGHT-50, 30, 30), "label": "+", "action": lambda: adjust_speed(0.1)},
-            {"rect": pygame.Rect(240, HEIGHT-50, 30, 30), "label": "-", "action": lambda: adjust_speed(-0.1)},
-            
+            {"rect": pygame.Rect(10, HEIGHT - 50, 70, 30), "label": "Pause", "action": toggle_pause},
+            {"rect": pygame.Rect(100, HEIGHT - 50, 70, 30), "label": "Reset", "action": reset_simulation},
+            {"rect": pygame.Rect(200, HEIGHT - 50, 30, 30), "label": "+", "action": lambda: adjust_speed(0.1)},
+            {"rect": pygame.Rect(240, HEIGHT - 50, 30, 30), "label": "-", "action": lambda: adjust_speed(-0.1)},
+            {"rect": pygame.Rect(360, HEIGHT - 50, 110, 30), "label": "Info bodies", "action": toggle_display_info},
         ]
 
-        # Handle button clicks
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for button in buttons:
@@ -193,21 +204,27 @@ def run_simulation():
         mouse_x, mouse_y = pygame.mouse.get_pos()
         for button in buttons:
             rect = button["rect"]
-            color = hover_color if rect.collidepoint(mouse_x, mouse_y) else button_color  # Highlight on hover
-            pygame.draw.rect(screen, color, rect, border_radius=10)  # Rounded corners
+            color = hover_color if rect.collidepoint(mouse_x, mouse_y) else button_color  
+            pygame.draw.rect(screen, color, rect, border_radius=10)  
             label_surface = button_font.render(button["label"], True, text_color)
-            screen.blit(label_surface, (rect.x + 10, rect.y + 5))  # Center text
+            screen.blit(label_surface, (rect.x + 10, rect.y + 5))  
 
-        # Display the speed multiplier value next to + and - buttons
-        speed_text = button_font.render(f"x{speed_multiplier:.1f}", True, text_color)  # Format with 1 decimal
-        screen.blit(speed_text, (280, HEIGHT - 45))  # Position next to '-' button
+        # Display elapsed time
+        years = elapsed_time / 365  
+        centuries = years / 100  
+        time_text = button_font.render(f"Time: {years:.1f} earth years", True, text_color)
+        #time_text = button_font.render(f"Time: {elapsed_time:.1f} days ({years:.2f} years, {centuries:.2f} centuries)", True, text_color)
+        screen.blit(time_text, (10, 10))
 
-        
+        # Display speed multiplier value
+        speed_text = button_font.render(f"x{speed_multiplier:.1f}", True, text_color)  
+        screen.blit(speed_text, (280, HEIGHT - 45))  
 
         pygame.display.flip()
         clock.tick(60)
-    
+
     pygame.quit()
+
 
 if __name__ == "__main__":
     run_simulation()
