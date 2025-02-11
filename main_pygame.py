@@ -16,12 +16,30 @@ paused = False
 speed_multiplier = 1.0  # Speed control factor
 button_font = None
 
-# Default Initial Conditions - Three bodies with different masses, positions, and velocities
-bodies = [
-    {'mass': 1.0, 'pos': np.array([-1.0, 0.0]), 'vel': np.array([0.0, -1.0]), 'color': (255, 0, 0)},
-    {'mass': 1.5, 'pos': np.array([1.0, 0.0]), 'vel': np.array([0.0, 1.0]), 'color': (0, 255, 0)},
-    {'mass': 2.0, 'pos': np.array([0.0, 0.0]), 'vel': np.array([1.0, 0.0]), 'color': (0, 0, 255)}
-]
+# Load Background Image
+pygame.init()
+BACKGROUND_IMAGE = pygame.image.load("assets/background/space.jpeg")
+BACKGROUND_WIDTH, BACKGROUND_HEIGHT = BACKGROUND_IMAGE.get_size()
+background_x, background_y = 0, 0  # Initial position for moving background
+background_speed = 0.02  # Slow diagonal movement speed
+
+# Load and Play Background Music
+pygame.mixer.init()
+pygame.mixer.music.load("assets/sounds/epiano.mp3")
+pygame.mixer.music.play(-1)  # Loop music indefinitely
+pygame.mixer.music.set_volume(.7)
+
+# Default Initial Conditions - Slightly Unstable System
+def default_bodies():
+    return [
+        {'mass': 1.0, 'pos': np.array([-1.02, 0.25]), 'vel': np.array([0.47, 0.42]), 'color': (255, 0, 0)},
+        {'mass': 1.0, 'pos': np.array([1.01, -0.24]), 'vel': np.array([0.46, 0.43]), 'color': (0, 255, 0)},
+        {'mass': 1.0, 'pos': np.array([0.0, 0.0]), 'vel': np.array([-0.93, -0.87]), 'color': (0, 0, 255)}
+    ]
+
+bodies = default_bodies()
+trails = [[] for _ in bodies]  # Restore trails
+max_trail_length = 500  # Controls how long the trails remain visible
 
 def compute_accelerations(bodies):
     """Computes gravitational acceleration for each body due to all other bodies."""
@@ -55,6 +73,14 @@ def adjust_speed(factor):
     global speed_multiplier
     speed_multiplier = max(0.1, min(speed_multiplier * factor, 10))  # Keep speed within reasonable bounds
 
+def reset_simulation():
+    """Resets the simulation to the default initial conditions."""
+    global bodies, paused, speed_multiplier, trails
+    bodies = default_bodies()
+    paused = False
+    speed_multiplier = 1.0
+    trails = [[] for _ in bodies]  # Reset trails
+
 def get_center_of_mass():
     """Computes the center of mass of the system to keep it centered in the view."""
     total_mass = sum(body['mass'] for body in bodies)
@@ -63,18 +89,20 @@ def get_center_of_mass():
 
 def run_simulation():
     """Runs the simulation loop using Pygame to visualize motion and add UI controls."""
-    pygame.init()
-    global button_font
+    global button_font, background_x, background_y
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
-    button_font = pygame.font.Font(None, 25)  # Font for UI buttons
+    button_font = pygame.font.Font(None, 25)  # Smaller font for better button fit
     running = True
     
-    trails = [[] for _ in bodies]  # Store past positions for trail effect
-    max_trail_length = 500  # Controls how long the trails remain visible
-    
     while running:
-        screen.fill((0, 0, 0))  # Clear the screen each frame
+        # Move background diagonally
+        background_x = (background_x + background_speed) % BACKGROUND_WIDTH
+        background_y = (background_y + background_speed) % BACKGROUND_HEIGHT
+        
+        for x_offset in range(0, WIDTH, BACKGROUND_WIDTH):
+            for y_offset in range(0, HEIGHT, BACKGROUND_HEIGHT):
+                screen.blit(BACKGROUND_IMAGE, (x_offset - background_x, y_offset - background_y))
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -87,6 +115,8 @@ def run_simulation():
                     adjust_speed(1.1)
                 elif 190 <= mx <= 240 and 550 <= my <= 580:
                     adjust_speed(0.9)
+                elif 260 <= mx <= 360 and 550 <= my <= 580:
+                    reset_simulation()
         
         if not paused:
             update_positions(bodies, dt)  # Update the positions of the bodies
@@ -98,37 +128,19 @@ def run_simulation():
             x, y = int(pos_adjusted[0]), int(pos_adjusted[1])
             radius = int(body['mass'] * 5)  # Scale the size of the body based on its mass
             
-            # Draw the main body
             pygame.gfxdraw.filled_circle(screen, x, y, radius, body['color'])
             pygame.gfxdraw.aacircle(screen, x, y, radius, body['color'])
             
-            # Store past positions for the trail
             trails[i].append((x, y))
             if len(trails[i]) > max_trail_length:
                 trails[i].pop(0)
-            
-            # Smooth gradient fading effect for trails
             for j, trail_pos in enumerate(trails[i]):
-                fade_factor = j / len(trails[i])  # Determines brightness level
-                trail_color = (
-                    int(body['color'][0] * fade_factor + 100 * (1 - fade_factor)),
-                    int(body['color'][1] * fade_factor + 100 * (1 - fade_factor)),
-                    int(body['color'][2] * fade_factor + 100 * (1 - fade_factor))
-                )
+                fade_factor = j / len(trails[i])
+                trail_color = tuple(int(c * fade_factor) for c in body['color'])
                 pygame.gfxdraw.filled_circle(screen, trail_pos[0], trail_pos[1], 2, trail_color)
-                pygame.gfxdraw.aacircle(screen, trail_pos[0], trail_pos[1], 2, trail_color)
-        
-        # UI Buttons
-        pygame.draw.rect(screen, (200, 200, 200), (10, 550, 100, 30))
-        pygame.draw.rect(screen, (200, 200, 200), (130, 550, 50, 30))
-        pygame.draw.rect(screen, (200, 200, 200), (190, 550, 50, 30))
-        
-        screen.blit(button_font.render("Pause", True, (0, 0, 0)), (30, 555))
-        screen.blit(button_font.render("+ Speed", True, (0, 0, 0)), (135, 555))
-        screen.blit(button_font.render("- Speed", True, (0, 0, 0)), (195, 555))
         
         pygame.display.flip()
-        clock.tick(60)  # Control simulation speed to 60 FPS
+        clock.tick(60)
     
     pygame.quit()
 
