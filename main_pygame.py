@@ -175,7 +175,7 @@ def run_simulation():
 
         # Button positions
         buttons = [
-            {"rect": pygame.Rect(10, HEIGHT-50, 80, 30), "label": "Pause", "action": toggle_pause},
+            {"rect": pygame.Rect(10, HEIGHT-50, 70, 30), "label": "Pause", "action": toggle_pause},
             {"rect": pygame.Rect(100, HEIGHT-50, 70, 30), "label": "Reset", "action": reset_simulation},
             {"rect": pygame.Rect(200, HEIGHT-50, 30, 30), "label": "+", "action": lambda: adjust_speed(0.1)},
             {"rect": pygame.Rect(240, HEIGHT-50, 30, 30), "label": "-", "action": lambda: adjust_speed(-0.1)},
