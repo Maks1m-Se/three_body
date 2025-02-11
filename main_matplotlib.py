@@ -46,34 +46,46 @@ def simulate():
             positions[i].append(body['pos'].copy())
     return positions
 
-def animate(i, lines, positions):
-    for line, pos in zip(lines, positions):
-        line.set_data([p[0] for p in pos[:i+1]], [p[1] for p in pos[:i+1]])
-    return lines
+def animate(i, scatters, positions):
+    for scatter, pos in zip(scatters, positions):
+        scatter.set_offsets(pos[i])
+    return scatters
 
 def start_simulation():
     positions = simulate()
     fig, ax = plt.subplots()
     ax.set_xlim(-2, 2)
     ax.set_ylim(-2, 2)
-    lines = [ax.plot([], [], marker='o')[0] for _ in positions]
-    ani = animation.FuncAnimation(fig, animate, frames=num_steps, fargs=(lines, positions), interval=20, blit=False)
+    ax.set_facecolor('black')
+    
+    scatters = [ax.scatter([], [], s=50, c='red', edgecolors='white') for _ in positions]
+    ani = animation.FuncAnimation(fig, animate, frames=num_steps, fargs=(scatters, positions), interval=20, blit=False)
     plt.show()
 
 def create_gui():
     root = tk.Tk()
     root.title("Three-Body Problem Simulation")
     
-    ttk.Label(root, text="Initial Conditions:").grid(row=0, column=0, columnspan=2)
+    ttk.Label(root, text="Initial Conditions:").grid(row=0, column=0, columnspan=4)
     
     for i, body in enumerate(bodies):
         ttk.Label(root, text=f"Body {i+1} Mass:").grid(row=i+1, column=0)
         mass_entry = ttk.Entry(root)
         mass_entry.insert(0, str(body['mass']))
         mass_entry.grid(row=i+1, column=1)
+        
+        ttk.Label(root, text=f"Pos (x, y):").grid(row=i+1, column=2)
+        pos_entry = ttk.Entry(root)
+        pos_entry.insert(0, f"{body['pos'][0]}, {body['pos'][1]}")
+        pos_entry.grid(row=i+1, column=3)
+        
+        ttk.Label(root, text=f"Vel (vx, vy):").grid(row=i+1, column=4)
+        vel_entry = ttk.Entry(root)
+        vel_entry.insert(0, f"{body['vel'][0]}, {body['vel'][1]}")
+        vel_entry.grid(row=i+1, column=5)
     
     start_button = ttk.Button(root, text="Start Simulation", command=start_simulation)
-    start_button.grid(row=len(bodies) + 1, column=0, columnspan=2)
+    start_button.grid(row=len(bodies) + 1, column=0, columnspan=6)
     
     root.mainloop()
 
