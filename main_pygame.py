@@ -12,9 +12,9 @@ SCALE = 100  # Scaling factor for better visualization
 
 # Default Initial Conditions
 bodies = [
-    {'mass': 1.0, 'pos': np.array([-1.0, 0.0]), 'vel': np.array([0.0, -1.0])},
-    {'mass': 1.0, 'pos': np.array([1.0, 0.0]), 'vel': np.array([0.0, 1.0])},
-    {'mass': 1.0, 'pos': np.array([0.0, 0.0]), 'vel': np.array([1.0, 0.0])}
+    {'mass': 0.4, 'pos': np.array([-1.0, 0.0]), 'vel': np.array([0.0, -1.5]), 'color': (255, 0, 0)},
+    {'mass': 1.9, 'pos': np.array([1.0, 0.0]), 'vel': np.array([0.0, 1.0]), 'color': (0, 255, 0)},
+    {'mass': 2.0, 'pos': np.array([0.0, 0.0]), 'vel': np.array([1.0, 0.0]), 'color': (0, 0, 255)}
 ]
 
 def compute_accelerations(bodies):
@@ -56,13 +56,17 @@ def run_simulation():
         
         for i, body in enumerate(bodies):
             x, y = body['pos'] * SCALE + np.array([WIDTH / 2, HEIGHT / 2])
-            pygame.draw.circle(screen, (255, 0, 0), (int(x), int(y)), 5)
+            radius = int(body['mass'] * 5)  # Mass-based size scaling
+            pygame.draw.circle(screen, body['color'], (int(x), int(y)), radius)
             trails[i].append((int(x), int(y)))
             if len(trails[i]) > 100:
                 trails[i].pop(0)
             
-            for trail_pos in trails[i]:
-                pygame.draw.circle(screen, (255, 255, 255), trail_pos, 1)
+            # Fade-out effect for trails
+            for j, trail_pos in enumerate(trails[i]):
+                alpha = int(255 * (j / len(trails[i])))  # Gradual fade
+                trail_color = tuple(min(255, c + 100) for c in body['color'])  # Brighter trail color
+                pygame.draw.circle(screen, trail_color, trail_pos, 2)
         
         pygame.display.flip()
         clock.tick(60)
