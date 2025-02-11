@@ -14,6 +14,7 @@ SCALE = 100  # Scaling factor to visualize position values in pixels
 # UI Controls
 paused = False
 speed_multiplier = 1.0  # Speed control factor
+button_font = None
 
 # Default Initial Conditions - Three bodies with different masses, positions, and velocities
 bodies = [
@@ -54,12 +55,19 @@ def adjust_speed(factor):
     global speed_multiplier
     speed_multiplier = max(0.1, min(speed_multiplier * factor, 10))  # Keep speed within reasonable bounds
 
+def get_center_of_mass():
+    """Computes the center of mass of the system to keep it centered in the view."""
+    total_mass = sum(body['mass'] for body in bodies)
+    center_of_mass = sum(body['pos'] * body['mass'] for body in bodies) / total_mass
+    return center_of_mass
+
 def run_simulation():
     """Runs the simulation loop using Pygame to visualize motion and add UI controls."""
     pygame.init()
+    global button_font
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
-    font = pygame.font.Font(None, 30)  # Font for UI elements
+    button_font = pygame.font.Font(None, 25)  # Font for UI buttons
     running = True
     
     trails = [[] for _ in bodies]  # Store past positions for trail effect
@@ -71,27 +79,31 @@ def run_simulation():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False  # Allow the user to close the window
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = pygame.mouse.get_pos()
+                if 10 <= mx <= 110 and 550 <= my <= 580:
                     toggle_pause()
-                elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                elif 130 <= mx <= 180 and 550 <= my <= 580:
                     adjust_speed(1.1)
-                elif event.key == pygame.K_MINUS:
+                elif 190 <= mx <= 240 and 550 <= my <= 580:
                     adjust_speed(0.9)
         
         if not paused:
             update_positions(bodies, dt)  # Update the positions of the bodies
         
+        center_of_mass = get_center_of_mass()
+        
         for i, body in enumerate(bodies):
-            x, y = body['pos'] * SCALE + np.array([WIDTH / 2, HEIGHT / 2])
+            pos_adjusted = (body['pos'] - center_of_mass) * SCALE + np.array([WIDTH / 2, HEIGHT / 2])
+            x, y = int(pos_adjusted[0]), int(pos_adjusted[1])
             radius = int(body['mass'] * 5)  # Scale the size of the body based on its mass
             
             # Draw the main body
-            pygame.gfxdraw.filled_circle(screen, int(x), int(y), radius, body['color'])
-            pygame.gfxdraw.aacircle(screen, int(x), int(y), radius, body['color'])
+            pygame.gfxdraw.filled_circle(screen, x, y, radius, body['color'])
+            pygame.gfxdraw.aacircle(screen, x, y, radius, body['color'])
             
             # Store past positions for the trail
-            trails[i].append((int(x), int(y)))
+            trails[i].append((x, y))
             if len(trails[i]) > max_trail_length:
                 trails[i].pop(0)
             
@@ -106,11 +118,14 @@ def run_simulation():
                 pygame.gfxdraw.filled_circle(screen, trail_pos[0], trail_pos[1], 2, trail_color)
                 pygame.gfxdraw.aacircle(screen, trail_pos[0], trail_pos[1], 2, trail_color)
         
-        # UI Overlay
-        pause_text = font.render("Press SPACE to Pause/Resume", True, (255, 255, 255))
-        speed_text = font.render(f"Speed: {speed_multiplier:.1f}x (+/- to adjust)", True, (255, 255, 255))
-        screen.blit(pause_text, (10, 10))
-        screen.blit(speed_text, (10, 40))
+        # UI Buttons
+        pygame.draw.rect(screen, (200, 200, 200), (10, 550, 100, 30))
+        pygame.draw.rect(screen, (200, 200, 200), (130, 550, 50, 30))
+        pygame.draw.rect(screen, (200, 200, 200), (190, 550, 50, 30))
+        
+        screen.blit(button_font.render("Pause", True, (0, 0, 0)), (30, 555))
+        screen.blit(button_font.render("+ Speed", True, (0, 0, 0)), (135, 555))
+        screen.blit(button_font.render("- Speed", True, (0, 0, 0)), (195, 555))
         
         pygame.display.flip()
         clock.tick(60)  # Control simulation speed to 60 FPS
