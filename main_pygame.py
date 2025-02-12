@@ -21,16 +21,25 @@ button_font = None
 pygame.init()
 BACKGROUND_IMAGE = pygame.image.load("assets/background/space.jpeg")
 BACKGROUND_WIDTH, BACKGROUND_HEIGHT = BACKGROUND_IMAGE.get_size()
-background_x, background_y = 0, 0  # Initial position for moving background
-background_speed_x = 0.1  # Slow diagonal movement speed
-background_speed_y = 0.02  # Slow diagonal movement speed
-max_body_speed = 8
+pygame.RESIZABLE   
+image_scale = BACKGROUND_IMAGE.get_height()/BACKGROUND_IMAGE.get_width() #save scale of image height and width
+BACKGROUND_IMAGE = pygame.transform.scale(BACKGROUND_IMAGE, (WIDTH, WIDTH*image_scale)) #scale image to its original proportion according to width
+bg_x, bg_y = 0, 0
+bg_x_speed, bg_y_speed = 0.05, 0.2 
+
+
+
+
+
 
 # Load and Play Background Music
 pygame.mixer.init()
 pygame.mixer.music.load("assets/sounds/epiano.mp3")
 pygame.mixer.music.play(-1)  # Loop music indefinitely
 pygame.mixer.music.set_volume(.5)
+
+# Cut off max speed of bodies
+max_body_speed = 8
 
 # Default Initial Conditions - Slightly Unstable System
 def default_bodies():
@@ -126,27 +135,23 @@ def run_simulation():
     running = True
     
     while running:
-        # Move background diagonally
-        background_x = (background_x + background_speed_x) % BACKGROUND_WIDTH
-        background_y = (background_y + background_speed_y) % BACKGROUND_HEIGHT
+        global bg_x, bg_y, bg_x_speed, bg_y_speed
+        screen.fill((0,0,0)) #redraws BG
+        screen.blit(BACKGROUND_IMAGE, (bg_x,bg_y)) #x,y; x changes in nagativ direction: to the left
+        screen.blit(BACKGROUND_IMAGE, (WIDTH + bg_x, HEIGHT + bg_y)) # image to the right bottom (diagonally)
+        screen.blit(BACKGROUND_IMAGE, (WIDTH + bg_x, bg_y)) # image to the right
+        if (bg_y<=-HEIGHT):
+            screen.blit(BACKGROUND_IMAGE, (WIDTH + bg_x, HEIGHT + bg_y))
+            bg_y=0
+        elif (bg_x<=-HEIGHT):
+            screen.blit(BACKGROUND_IMAGE, (WIDTH + bg_x, HEIGHT + bg_y))
+            bg_x=0
+        bg_x -= bg_x_speed
+        bg_y -= bg_y_speed
         
-        for x_offset in range(0, WIDTH, BACKGROUND_WIDTH):
-            for y_offset in range(0, HEIGHT, BACKGROUND_HEIGHT):
-                screen.blit(BACKGROUND_IMAGE, (x_offset - background_x, y_offset - background_y))
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False  # Allow the user to close the window
-            # elif event.type == pygame.MOUSEBUTTONDOWN:
-            #     mx, my = pygame.mouse.get_pos()
-            #     if 10 <= mx <= 110 and 700 <= my <= 730:  
-            #         toggle_pause()
-            #     elif 130 <= mx <= 180 and 700 <= my <= 730:
-            #         adjust_speed(0.1)
-            #     elif 190 <= mx <= 240 and 700 <= my <= 730:
-            #         adjust_speed(-0.1)
-            #     elif 260 <= mx <= 360 and 700 <= my <= 730:
-            #         reset_simulation()
+        ###########
+
+
 
         if not paused:
             update_positions(bodies, dt)  
@@ -195,7 +200,9 @@ def run_simulation():
         ]
 
         for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 for button in buttons:
                     if button["rect"].collidepoint(event.pos):
                         button["action"]()
